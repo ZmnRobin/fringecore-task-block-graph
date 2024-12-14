@@ -104,7 +104,7 @@ const Block = ({ block, parent, onAdd, onDrag, index }) => {
         onMouseDown={handleMouseDown}
       >
         <div className="absolute top-[-10px] text-white mt-2 rounded-full w-8 h-8 flex items-center justify-center text-xs font-bold">
-          {index}
+          {index-1}
         </div>
         <button
           className="bg-white px-4 py-1 text-pink-500"
