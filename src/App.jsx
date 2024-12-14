@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { v4 as uuidv4 } from "uuid";
 
 const App = () => {
@@ -29,7 +29,7 @@ const App = () => {
           block={block}
           parent={blocks.find((b) => b.id === block.parentId)}
           onAdd={() => addBlock(block.id)}
-          onDrag={(position) => updatePosition(block.id, position)}
+          onDrag={(newPosition) => updatePosition(block.id, newPosition)}
           index={index + 1}
         />
       ))}
@@ -38,24 +38,47 @@ const App = () => {
 };
 
 const Block = ({ block, parent, onAdd, onDrag, index }) => {
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-
+  const blockRef = useRef(null);
   const handleMouseDown = (e) => {
-    e.preventDefault();
-    setIsDragging(true);
-    setDragStart({ x: e.clientX - block.position.x, y: e.clientY - block.position.y });
+    const blockElement = blockRef.current;
+    if (!blockElement) return;
+
+    const startX = e.clientX;
+    const startY = e.clientY;
+
+    const rect = blockElement.getBoundingClientRect();
+    const offsetX = startX - rect.left;
+    const offsetY = startY - rect.top;
+
+    const handleMouseMove = (e) => {
+      const newX = e.clientX - offsetX;
+      const newY = e.clientY - offsetY;
+      onDrag({ x: newX, y: newY });
+    };
+
+    const handleMouseUp = () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
   };
 
-  const handleMouseMove = (e) => {
-    if (!isDragging) return;
-    const newX = e.clientX - dragStart.x;
-    const newY = e.clientY - dragStart.y;
-    onDrag({ x: newX, y: newY });
+  const calculateLineStart = (parent, block) => {
+    const isAbove = block.position.y < parent.position.y;
+    return {
+      x: parent.position.x + 40,
+      y: isAbove ? parent.position.y : parent.position.y + 80,
+    };
   };
 
-  const handleMouseUp = () => {
-    setIsDragging(false);
+  const calculateLineEnd = (parent, block) => {
+    const isLeft = block.position.x < parent.position.x;
+    return {
+      x: isLeft ? block.position.x + 80 : block.position.x,
+      y: block.position.y + 40,
+    };
   };
 
   return (
@@ -63,9 +86,11 @@ const Block = ({ block, parent, onAdd, onDrag, index }) => {
       {parent && (
         <svg className="absolute top-0 left-0 w-full h-full pointer-events-none">
           <polyline
-            points={
-              `${parent.position.x + 40},${parent.position.y + 20} ${parent.position.x + 40},${block.position.y + 20} ${block.position.x + 20},${block.position.y + 20}`
-            }
+            points={`
+              ${calculateLineStart(parent, block).x},${calculateLineStart(parent, block).y}
+              ${calculateLineStart(parent, block).x},${calculateLineEnd(parent, block).y}
+              ${calculateLineEnd(parent, block).x},${calculateLineEnd(parent, block).y}
+            `}
             fill="none"
             stroke="black"
             strokeDasharray="4"
@@ -73,17 +98,16 @@ const Block = ({ block, parent, onAdd, onDrag, index }) => {
         </svg>
       )}
       <div
-        className="absolute w-20 h-20 bg-pink-500 text-white flex items-center justify-center rounded cursor-pointer shadow-lg"
+        ref={blockRef}
+        className="absolute w-20 h-20 bg-pink-500 text-white flex flex-col items-center justify-center cursor-pointer shadow-lg"
         style={{ top: block.position.y, left: block.position.x }}
         onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
       >
-        <div className="absolute top-1 left-1 bg-white text-black rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
+        <div className="absolute top-[-10px] text-white mt-2 rounded-full w-8 h-8 flex items-center justify-center text-xs font-bold">
           {index}
         </div>
         <button
-          className="bg-white text-black px-4 rounded"
+          className="bg-white px-4 py-1 text-pink-500"
           onClick={(e) => {
             e.stopPropagation();
             onAdd();
